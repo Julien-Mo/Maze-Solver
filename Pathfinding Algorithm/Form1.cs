@@ -1,33 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Pathfinding_Algorithm
 {
     public partial class Form1 : Form
     {
-        // Constants
-        private const int CellSize = 10;
+        private const int PointSize = 10;
         private const int GridSize = 50;
-
-        // Variables
-        private Tuple<int, int> start = new Tuple<int, int>(0, 0);
-        private Tuple<int, int> end = new Tuple<int, int>(GridSize-1, GridSize-1);
+        private Point start = new Point(0, 0);
+        private Point end = new Point(GridSize - 1, GridSize - 1);
         private int[,] maze = new int[GridSize, GridSize];
-        /* 
-        private int[,] maze = new int[5, 5]  { { 0, 1, 1, 1, 0 },
-                                               { 0, 1, 0, 1, 0 },
-                                               { 0, 1, 0, 1, 0 },
-                                               { 0, 0, 0, 1, 0 },
-                                               { 0, 0, 0, 0, 0 } };
-        */
 
         public Form1()
         {
@@ -35,65 +19,86 @@ namespace Pathfinding_Algorithm
             InitializeRandomMaze();
         }
 
-        // Creates a random maze (not guaranteed to be solvable)
         private void InitializeRandomMaze()
         {
+            // Creates a flappy bird style maze with 1 opening in each barrier column
             Random rand = new Random();
 
             for (int i = 0; i < maze.GetLength(0); i++)
             {
                 for (int j = 0; j < maze.GetLength(1); j++)
                 {
-                    maze[i, j] = rand.Next(4) < 3 ? 0 : 1;
+                    if (j % 2 == 0)
+                    {
+                        // Open column: all cells are 0
+                        maze[i, j] = 0;
+                    }
+                    else
+                    {
+                        // Barrier column: set all cells to 1 initially
+                        maze[i, j] = 1;
+                    }
                 }
             }
 
-            // Clear the start and end points
-            maze[start.Item1, start.Item2] = 0;
-            maze[end.Item1, end.Item2] = 0;
+            // Add a single opening (0) in each barrier column
+            for (int j = 1; j < maze.GetLength(1); j += 2)
+            {
+                maze[rand.Next(maze.GetLength(0)), j] = 0;  // First random opening
+                //maze[rand.Next(maze.GetLength(0)), j] = 0;  // Second random opening
+            }
+
+            // Clear the start and end points if needed
+            maze[start.Y, start.X] = 0;
+            maze[end.Y, end.X] = 0;
         }
 
-        // A* algorithm
-        private void findShortestPath()
+        private void buttonSolve_Click(object sender, EventArgs e)
         {
-            var openNodes = new PriorityQueue<Tuple<int, int>>();
-            var closedNodes = new List<Tuple<int, int>>();
-            var parents = new Tuple<int, int>[GridSize, GridSize];
+            FindShortestPath();
+        }
+
+        private void FindShortestPath()
+        {
+            // A* algorithm
+            var openNodes = new PriorityQueue<Point>();
+            var closedNodes = new HashSet<Point>();
+            var parents = new Point?[GridSize, GridSize];
             var fCosts = new int[GridSize, GridSize];
 
-            // add start node to openNodes
+            // Add start node to openNodes
             openNodes.Enqueue(start, 0);
 
-            // loop until openNodes is empty
+            // Loop until openNodes is empty
             while (openNodes.Count > 0)
             {
-                // get node with lowest fCost
+                // Get node with lowest fCost
                 var current = openNodes.Dequeue();
 
-                // add current to closedNodes
+                // Add current to closedNodes
                 closedNodes.Add(current);
-                PaintCell(current.Item1, current.Item2, Color.Gray);
+                PaintPoint(current, Color.Gray);
 
-                // check if path has been found
+                // Check if path has been found
                 if (current.Equals(end))
                 {
-                    // reconstruct path
+                    // Reconstruct path
                     while (current != start)
                     {
                         textBoxTestOutput.AppendText(current.ToString() + "\n");
-                        current = parents[current.Item1, current.Item2];
-                        PaintCell(current.Item1, current.Item2, Color.Blue);
+                        current = parents[current.Y, current.X].Value;
+                        PaintPoint(current, Color.Blue);
                     }
                     break;
                 }
 
-                // for each neighbor of the current node
-                foreach (Tuple<int, int> neighbor in GetNeighbors(current))
+                // For each neighbor of the current node
+                foreach (Point neighbor in GetNeighbors(current))
                 {
-                    int row = neighbor.Item1;
-                    int col = neighbor.Item2;
+                    int row = neighbor.Y;
+                    int col = neighbor.X;
 
-                    // if neighbor is not traversable or neighbor is in closedNodes
+                    // If neighbor is not traversable or neighbor is in closedNodes
                     if (row < 0 || row >= maze.GetLength(0) ||
                         col < 0 || col >= maze.GetLength(1) ||
                         maze[row, col] == 1 || closedNodes.Contains(neighbor))
@@ -101,21 +106,21 @@ namespace Pathfinding_Algorithm
                         continue;
                     }
 
-                    // calculate gCost, hCost, fCost
-                    int gCost = (int)Math.Sqrt(Math.Pow(row - start.Item1, 2) + Math.Pow(col - start.Item2, 2)) * 10;
-                    int hCost = (int)Math.Sqrt(Math.Pow(row - end.Item1, 2) + Math.Pow(col - end.Item2, 2)) * 10;
+                    // Calculate distance from start, distance to end, and total distance (fCost)
+                    int gCost = (int)Math.Sqrt(Math.Pow(row - start.Y, 2) + Math.Pow(col - start.X, 2)) * 10;
+                    int hCost = (int)Math.Sqrt(Math.Pow(row - end.Y, 2) + Math.Pow(col - end.X, 2)) * 10;
                     int fCost = gCost + hCost;
 
-                    // if new path to neighbor is shorter or neighbor is not in openNodes
+                    // If new path to neighbor is shorter or neighbor is not in openNodes
                     if (fCost < fCosts[row, col] || !openNodes.Contains(neighbor))
                     {
-                        // set fCost of neighbor
+                        // Set fCost of neighbor
                         fCosts[row, col] = fCost;
 
-                        // set parent of neighbor to current node
+                        // Set parent of neighbor to current node
                         parents[row, col] = current;
 
-                        // add neighbor to openNodes
+                        // Add neighbor to openNodes
                         if (!openNodes.Contains(neighbor))
                         {
                             openNodes.Enqueue(neighbor, fCost);
@@ -123,44 +128,24 @@ namespace Pathfinding_Algorithm
                     }
                 }
             }
-
         }
 
-        // Get the neighbors of the current cell
-        private List<Tuple<int, int>> GetNeighbors(Tuple<int, int> current)
+        private List<Point> GetNeighbors(Point point)
         {
-            int row = current.Item1;
-            int col = current.Item2;
+            int row = point.Y;
+            int col = point.X;
 
-            // Return a list of neighboring cells (including diagonals)
-            return new List<Tuple<int, int>>
+            return new List<Point>
             {
-                Tuple.Create(row - 1, col + 1), // Up-Right
-                Tuple.Create(row - 1, col),     // Up
-                Tuple.Create(row - 1, col - 1), // Up-Left
-                Tuple.Create(row, col - 1),     // Left
-                Tuple.Create(row + 1, col - 1), // Down-Left
-                Tuple.Create(row + 1, col),     // Down
-                Tuple.Create(row + 1, col + 1), // Down-Right
-                Tuple.Create(row, col + 1),     // Right
+                new Point(col + 1, row - 1), // Up-Right
+                new Point(col, row - 1),     // Up
+                new Point(col - 1, row - 1), // Up-Left
+                new Point(col - 1, row),     // Left
+                new Point(col - 1, row + 1), // Down-Left
+                new Point(col, row + 1),     // Down
+                new Point(col + 1, row + 1), // Down-Right
+                new Point(col + 1, row),     // Right
             };
-        }
-
-        private void buttonSolve_Click(object sender, EventArgs e)
-        {
-            findShortestPath();
-        }
-                
-        private void PaintCell(int row, int col, Color color)
-        {
-            int x = col * CellSize;
-            int y = row * CellSize;
-
-            using (Graphics g = gridPanel.CreateGraphics())
-            {
-                g.FillRectangle(new SolidBrush(color), x, y, CellSize, CellSize);
-                g.DrawRectangle(Pens.Black, x, y, CellSize, CellSize); // Redraw the border
-            }
         }
 
         private void gridPanel_Paint(object sender, PaintEventArgs e)
@@ -169,21 +154,28 @@ namespace Pathfinding_Algorithm
             {
                 for (int col = 0; col < maze.GetLength(1); col++)
                 {
-                    Color cellColor = GetColor(Tuple.Create(row, col));
-                    PaintCell(row, col, cellColor);
+                    Color pointColor = GetColor(new Point(col, row));
+                    PaintPoint(new Point(col, row), pointColor);
                 }
             }
         }
-
-        // Method to map array values to colors
-        private Color GetColor(Tuple<int, int> cell)
+        private void PaintPoint(Point point, Color color)
         {
-            int value = maze[cell.Item1, cell.Item2];
-            if (cell.Equals(start))
+            using (Graphics g = gridPanel.CreateGraphics())
+            {
+                g.FillRectangle(new SolidBrush(color), point.X * PointSize, point.Y * PointSize, PointSize, PointSize);
+                g.DrawRectangle(Pens.Black, point.X * PointSize, point.Y * PointSize, PointSize, PointSize); // Redraw the border
+            }
+        }
+
+        private Color GetColor(Point point)
+        {
+            int value = maze[point.Y, point.X];
+            if (point.Equals(start))
             {
                 return Color.Green;
             }
-            else if (cell.Equals(end))
+            else if (point.Equals(end))
             {
                 return Color.Red;
             }
@@ -191,15 +183,17 @@ namespace Pathfinding_Algorithm
             {
                 return Color.Black;
             }
-            else
+            else if (value == 0)
             {
                 return Color.White;
             }
+            else
+            {
+                return Color.Orange;
+            }
         }
-
     }
 
-    // Priority Queue class
     public class PriorityQueue<T>
     {
         private SortedDictionary<int, Queue<T>> _dict = new SortedDictionary<int, Queue<T>>();

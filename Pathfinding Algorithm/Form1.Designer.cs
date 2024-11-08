@@ -35,7 +35,7 @@
             // 
             // textBoxTestOutput
             // 
-            this.textBoxTestOutput.Location = new System.Drawing.Point(907, 46);
+            this.textBoxTestOutput.Location = new System.Drawing.Point(633, 47);
             this.textBoxTestOutput.Multiline = true;
             this.textBoxTestOutput.Name = "textBoxTestOutput";
             this.textBoxTestOutput.Size = new System.Drawing.Size(370, 219);
@@ -43,7 +43,7 @@
             // 
             // buttonSolve
             // 
-            this.buttonSolve.Location = new System.Drawing.Point(935, 12);
+            this.buttonSolve.Location = new System.Drawing.Point(661, 13);
             this.buttonSolve.Name = "buttonSolve";
             this.buttonSolve.Size = new System.Drawing.Size(75, 23);
             this.buttonSolve.TabIndex = 1;
@@ -55,7 +55,7 @@
             // 
             this.gridPanel.Location = new System.Drawing.Point(12, 12);
             this.gridPanel.Name = "gridPanel";
-            this.gridPanel.Size = new System.Drawing.Size(876, 746);
+            this.gridPanel.Size = new System.Drawing.Size(600, 538);
             this.gridPanel.TabIndex = 2;
             this.gridPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.gridPanel_Paint);
             // 
@@ -63,7 +63,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1289, 799);
+            this.ClientSize = new System.Drawing.Size(1027, 799);
             this.Controls.Add(this.gridPanel);
             this.Controls.Add(this.buttonSolve);
             this.Controls.Add(this.textBoxTestOutput);
