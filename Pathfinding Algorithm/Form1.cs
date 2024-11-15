@@ -1,22 +1,45 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Pathfinding_Algorithm
 {
     public partial class Form1 : Form
     {
-        private const int PointSize = 10;
-        private const int GridSize = 50;
+        private const int PointSize = 4;
+        private const int GridSize = 100;
         private Point start = new Point(0, 0);
-        private Point end = new Point(GridSize - 1, GridSize - 1);
+        private Point end = new Point(0, 0);
         private int[,] maze = new int[GridSize, GridSize];
 
         public Form1()
         {
             InitializeComponent();
-            InitializeRandomMaze();
+            InitializeMaze();
+            //InitializeRandomMaze();
+        }
+
+        private void InitializeMaze()
+        {
+            string filePath = "C:/Users/julie/source/repos/Maze Solver/Image Processing/maze_data.json";
+            // Read the JSON file as a string
+            string json = File.ReadAllText(filePath);
+
+            // Deserialize JSON into a dictionary
+            var mazeData = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+
+            // Deserialize the "maze" property directly into a 2D array
+            maze = JsonConvert.DeserializeObject<int[,]>(mazeData["maze"].ToString());
+
+            // Convert start and end to Points
+            int[] startArray = JsonConvert.DeserializeObject<int[]>(mazeData["start"].ToString());
+            start = new Point(startArray[0], startArray[1]);
+
+            int[] endArray = JsonConvert.DeserializeObject<int[]>(mazeData["end"].ToString());
+            end = new Point(endArray[0], endArray[1]);
         }
 
         private void InitializeRandomMaze()
