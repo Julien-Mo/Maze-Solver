@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maze Solver", "Maze Solver\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pathfinding Algorithm", "Pathfinding Algorithm\Pathfinding Algorithm.csproj", "{5E5500B0-4130-4C28-B8DA-80241565DE0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Image Capture", "Image Capture\Image Capture.csproj", "{F2FE2069-B43C-4945-85E7-125D5FA509AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{5E5500B0-4130-4C28-B8DA-80241565DE0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5E5500B0-4130-4C28-B8DA-80241565DE0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5E5500B0-4130-4C28-B8DA-80241565DE0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2FE2069-B43C-4945-85E7-125D5FA509AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2FE2069-B43C-4945-85E7-125D5FA509AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2FE2069-B43C-4945-85E7-125D5FA509AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2FE2069-B43C-4945-85E7-125D5FA509AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,17 +1,19 @@
 import cv2 as cv
 import numpy as np
 import json
+import os
 
 MAX_VALUE = 255
 BGR_LENGTH = 3
-GRID_SIZE = 100
+HEIGHT = 16*3
+WIDTH = 22*3
 KERNEL = (7, 7)
 BINARY_BLUR_KERNEL = (5, 5)
 THRESH_BLOCK = 11
 THRESH_C = 9
 THRESH_LOW = 50
 THRESH_HIGH = 150
-MARKER_CLEANUP_ITERATIONS = 15
+MARKER_CLEANUP_ITERATIONS = 13 # 1
 MARKER_PROCESSING_ITERATIONS = 25
 SKEW_CORRECTION_ITERATIONS = 5
 APPROXIMATION_TOLERANCE = 0.02
@@ -29,6 +31,13 @@ class Maze:
         self.start = None
         self.end = None
         self._kernel = np.ones(KERNEL, np.uint8)
+
+    def run(self):
+        self.fix_distortion()
+        self.fix_skew()
+        self.get_binary()
+        self.get_markers()
+        self.get_output()
 
     def show(self, name="Maze"):
         """Displays the current image of the maze."""
@@ -82,18 +91,18 @@ class Maze:
         self.end = self._process_marker((b > tolerance * g) & (b > tolerance * r))
         self.image = cv.dilate(self.image, self._kernel, iterations=MARKER_CLEANUP_ITERATIONS)
 
-    def get_output(self, grid_size=GRID_SIZE):
+    def get_output(self, width=WIDTH, height=HEIGHT):
         """Resizes the image and saves the maze data to a JSON file."""
-        self.image = cv.resize(self.image, (grid_size, grid_size), interpolation=cv.INTER_NEAREST)
-        self.start = (int(self.start[0] * grid_size), int(self.start[1] * grid_size))
-        self.end = (int(self.end[0] * grid_size), int(self.end[1] * grid_size))
+        self.image = cv.resize(self.image, (width, height), interpolation=cv.INTER_AREA)
+        self.start = (int(self.start[0] * width), int(self.start[1] * height))
+        self.end = (int(self.end[0] * width), int(self.end[1] * height))
         self.maze = (self.image != 0).astype(int).tolist()
         output_data = {
             "maze": self.maze,
             "start": self.start,
             "end": self.end,
         }
-        with open("Image Processing/maze_data.json", "w") as f:
+        with open(f"{os.path.dirname(os.path.realpath(__file__))}/maze_data.json", "w") as f:
             json.dump(output_data, f)
 
     def _find_largest_rectangle_contour(self, contours):
@@ -124,7 +133,7 @@ class Maze:
         largest_contour = max(contours, key=cv.contourArea)
         contour_mask = np.zeros_like(mask)
         cv.drawContours(contour_mask, [largest_contour], -1, MAX_VALUE, thickness=cv.FILLED)
-        dilated_mask = cv.dilate(contour_mask, self._kernel, iterations=MARKER_PROCESSING_ITERATIONS)
+        dilated_mask = cv.dilate(contour_mask, self._kernel, iterations=MARKER_PROCESSING_ITERATIONS) # 1
         self.image[dilated_mask == MAX_VALUE] = 0
         return self._calculate_center(largest_contour)
 
@@ -138,10 +147,6 @@ class Maze:
 
 
 if __name__ == "__main__":
-    maze = Maze(f"Image Processing/test_maze4.jpg")
-    maze.fix_distortion()
-    maze.fix_skew()
-    maze.get_binary()
-    maze.get_markers()
-    maze.get_output()
-    maze.show()
+    maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/test_maze2.jpg")
+    # maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/../Image Capture/bin/Debug/CapturedImage.png")
+    maze.run()

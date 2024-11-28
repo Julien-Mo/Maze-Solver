@@ -4,77 +4,68 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using Priority_Queue;
 
 namespace Pathfinding_Algorithm
 {
     public partial class Form1 : Form
     {
-        private const int PointSize = 4;
-        private const int GridSize = 100;
+        // Constants
+        private const int GridHeight = 16 * 3;
+        private const int GridWidth = 22 * 3;
+        private const int PointSize = 6;
+        private const int StraightCost = 10;
+        private const int DiagonalCost = 14;
+
+        // Grid Variables
         private Point start = new Point(0, 0);
         private Point end = new Point(0, 0);
-        private int[,] maze = new int[GridSize, GridSize];
+        private int[,] maze = new int[GridHeight, GridWidth];
+
+        // Packet Variables
+        private byte startByte = Byte.MaxValue;
+        private byte xHighByte = 0;
+        private byte xLowByte = 0;
+        private byte yHighByte = 0;
+        private byte yLowByte = 0;
+        private byte commandByte = 0;
+
+        // Flags
+        private bool isStartHomingSequence = false;
+        private bool isMagnetOn = false;
 
         public Form1()
         {
             InitializeComponent();
             InitializeMaze();
-            //InitializeRandomMaze();
+        }
+
+        // ============================
+        // Maze Initialization & Serialization
+        // ============================
+
+        private class MazeData
+        {
+            public int[,] Maze { get; set; }
+            public int[] Start { get; set; }
+            public int[] End { get; set; }
         }
 
         private void InitializeMaze()
         {
-            string filePath = "C:/Users/julie/source/repos/Maze Solver/Image Processing/maze_data.json";
-            // Read the JSON file as a string
+            string projectRoot = Directory.GetParent(Directory.GetParent(Directory.GetParent(Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).FullName).FullName).FullName).FullName;
+            string filePath = Path.Combine(projectRoot, "Image Processing", "maze_data.json");
             string json = File.ReadAllText(filePath);
+            var mazeData = JsonConvert.DeserializeObject<MazeData>(File.ReadAllText(filePath));
 
-            // Deserialize JSON into a dictionary
-            var mazeData = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
-
-            // Deserialize the "maze" property directly into a 2D array
-            maze = JsonConvert.DeserializeObject<int[,]>(mazeData["maze"].ToString());
-
-            // Convert start and end to Points
-            int[] startArray = JsonConvert.DeserializeObject<int[]>(mazeData["start"].ToString());
-            start = new Point(startArray[0], startArray[1]);
-
-            int[] endArray = JsonConvert.DeserializeObject<int[]>(mazeData["end"].ToString());
-            end = new Point(endArray[0], endArray[1]);
+            maze = mazeData.Maze;
+            start = new Point(mazeData.Start[0], mazeData.Start[1]);
+            end = new Point(mazeData.End[0], mazeData.End[1]);
         }
 
-        private void InitializeRandomMaze()
-        {
-            // Creates a flappy bird style maze with 1 opening in each barrier column
-            Random rand = new Random();
-
-            for (int i = 0; i < maze.GetLength(0); i++)
-            {
-                for (int j = 0; j < maze.GetLength(1); j++)
-                {
-                    if (j % 2 == 0)
-                    {
-                        // Open column: all cells are 0
-                        maze[i, j] = 0;
-                    }
-                    else
-                    {
-                        // Barrier column: set all cells to 1 initially
-                        maze[i, j] = 1;
-                    }
-                }
-            }
-
-            // Add a single opening (0) in each barrier column
-            for (int j = 1; j < maze.GetLength(1); j += 2)
-            {
-                maze[rand.Next(maze.GetLength(0)), j] = 0;  // First random opening
-                //maze[rand.Next(maze.GetLength(0)), j] = 0;  // Second random opening
-            }
-
-            // Clear the start and end points if needed
-            maze[start.Y, start.X] = 0;
-            maze[end.Y, end.X] = 0;
-        }
+        // ============================
+        // A* Pathfinding Logic
+        // ============================
 
         private void buttonSolve_Click(object sender, EventArgs e)
         {
@@ -83,74 +74,104 @@ namespace Pathfinding_Algorithm
 
         private void FindShortestPath()
         {
-            // A* algorithm
-            var openNodes = new PriorityQueue<Point>();
+            InitializeCosts(out var gCosts, out var fCosts, out var parents);
+            var openNodes = new SimplePriorityQueue<Point>();
             var closedNodes = new HashSet<Point>();
-            var parents = new Point?[GridSize, GridSize];
-            var fCosts = new int[GridSize, GridSize];
 
-            // Add start node to openNodes
-            openNodes.Enqueue(start, 0);
+            // Start node setup
+            gCosts[start.Y, start.X] = 0;
+            fCosts[start.Y, start.X] = CalculateHeuristic(start, end);
+            openNodes.Enqueue(start, fCosts[start.Y, start.X]);
 
-            // Loop until openNodes is empty
+            // A* search loop
             while (openNodes.Count > 0)
             {
-                // Get node with lowest fCost
-                var current = openNodes.Dequeue();
-
-                // Add current to closedNodes
-                closedNodes.Add(current);
-                PaintPoint(current, Color.Gray);
-
-                // Check if path has been found
-                if (current.Equals(end))
+                var currentNode = openNodes.Dequeue();
+                if (currentNode == end)
                 {
-                    // Reconstruct path
-                    while (current != start)
-                    {
-                        textBoxTestOutput.AppendText(current.ToString() + "\n");
-                        current = parents[current.Y, current.X].Value;
-                        PaintPoint(current, Color.Blue);
-                    }
-                    break;
+                    ReconstructPath(currentNode, parents);
+                    return;
                 }
+                ProcessNode(currentNode, openNodes, closedNodes, gCosts, fCosts, parents);
+            }
+        }
 
-                // For each neighbor of the current node
-                foreach (Point neighbor in GetNeighbors(current))
+        private void InitializeCosts(out int[,] gCosts, out int[,] fCosts, out Point?[,] parents)
+        {
+            gCosts = new int[GridHeight, GridWidth];
+            fCosts = new int[GridHeight, GridWidth];
+            parents = new Point?[GridHeight, GridWidth];
+
+            for (int i = 0; i < GridHeight; i++)
+                for (int j = 0; j < GridWidth; j++)
+                    gCosts[i, j] = fCosts[i, j] = int.MaxValue;
+        }
+
+        private void ProcessNode(Point currentNode, SimplePriorityQueue<Point> openNodes, HashSet<Point> closedNodes, int[,] gCosts, int[,] fCosts, Point?[,] parents)
+        {
+            closedNodes.Add(currentNode);
+            PaintPoint(currentNode, Color.Gray);
+
+            foreach (var neighbor in GetNeighbors(currentNode))
+            {
+                if (!IsValid(neighbor, closedNodes)) continue;
+
+                int tentativeGCost = gCosts[currentNode.Y, currentNode.X] + (IsDiagonal(currentNode, neighbor) ? DiagonalCost : StraightCost);
+                if (tentativeGCost < gCosts[neighbor.Y, neighbor.X])
                 {
-                    int row = neighbor.Y;
-                    int col = neighbor.X;
+                    gCosts[neighbor.Y, neighbor.X] = tentativeGCost;
+                    fCosts[neighbor.Y, neighbor.X] = tentativeGCost + CalculateHeuristic(neighbor, end);
+                    parents[neighbor.Y, neighbor.X] = currentNode;
 
-                    // If neighbor is not traversable or neighbor is in closedNodes
-                    if (row < 0 || row >= maze.GetLength(0) ||
-                        col < 0 || col >= maze.GetLength(1) ||
-                        maze[row, col] == 1 || closedNodes.Contains(neighbor))
+                    if (!openNodes.Contains(neighbor))
+                        openNodes.Enqueue(neighbor, fCosts[neighbor.Y, neighbor.X]);
+                    else
                     {
-                        continue;
-                    }
-
-                    // Calculate distance from start, distance to end, and total distance (fCost)
-                    int gCost = (int)Math.Sqrt(Math.Pow(row - start.Y, 2) + Math.Pow(col - start.X, 2)) * 10;
-                    int hCost = (int)Math.Sqrt(Math.Pow(row - end.Y, 2) + Math.Pow(col - end.X, 2)) * 10;
-                    int fCost = gCost + hCost;
-
-                    // If new path to neighbor is shorter or neighbor is not in openNodes
-                    if (fCost < fCosts[row, col] || !openNodes.Contains(neighbor))
-                    {
-                        // Set fCost of neighbor
-                        fCosts[row, col] = fCost;
-
-                        // Set parent of neighbor to current node
-                        parents[row, col] = current;
-
-                        // Add neighbor to openNodes
-                        if (!openNodes.Contains(neighbor))
-                        {
-                            openNodes.Enqueue(neighbor, fCost);
-                        }
+                        openNodes.UpdatePriority(neighbor, fCosts[neighbor.Y, neighbor.X]);
                     }
                 }
             }
+        }
+
+        private bool IsValid(Point neighbor, HashSet<Point> closedNodes)
+        {
+            return neighbor.Y >= 0 && neighbor.Y < GridHeight &&
+                   neighbor.X >= 0 && neighbor.X < GridWidth &&
+                   maze[neighbor.Y, neighbor.X] != 1 && !closedNodes.Contains(neighbor);
+        }
+
+        private bool IsDiagonal(Point current, Point neighbor)
+        {
+            return current.X != neighbor.X && current.Y != neighbor.Y;
+        }
+
+        private void ReconstructPath(Point currentNode, Point?[,] parents)
+        {
+            // Stack to hold the path from start to end
+            Stack<Point> path = new Stack<Point>();
+
+            // Traverse the path from end to start and push points onto the stack
+            while (currentNode != start)
+            {
+                path.Push(currentNode);
+                currentNode = parents[currentNode.Y, currentNode.X].Value;
+            }
+            path.Push(start);  // Add the start point
+
+            // Now, send packets from start to end
+            foreach (var node in path)
+            {
+                listBoxTestOutput.Items.Add(node.ToString());
+                PaintPoint(node, Color.Blue);
+                isMagnetOn = true;
+                var packet = CreatePacket(node);
+                SendPacket(packet);
+            }
+        }
+
+        private int CalculateHeuristic(Point a, Point b)
+        {
+            return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
         }
 
         private List<Point> GetNeighbors(Point point)
@@ -170,6 +191,102 @@ namespace Pathfinding_Algorithm
                 new Point(col + 1, row),     // Right
             };
         }
+
+        // ============================
+        // Packet Creation & Serial Communication
+        // ============================
+
+        private byte[] CreatePacket(Point currentNode)
+        {
+            return new byte[]
+            {
+                startByte,
+                (byte)((currentNode.X * UInt16.MaxValue / GridWidth) >> 8),
+                (byte)((currentNode.X * UInt16.MaxValue / GridWidth) & 0xFF),
+                (byte)((currentNode.Y * UInt16.MaxValue / GridHeight) >> 8),
+                (byte)((currentNode.Y * UInt16.MaxValue / GridHeight) & 0xFF),
+                GetCommandByte()
+            };
+        }
+        private void SendPacket(byte[] packet)
+        {
+            // Transmit the command to the COM port
+            if (serialPort1.IsOpen)
+            {
+                try
+                {
+                    serialPort1.Write(packet, 0, packet.Length);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error: " + ex.Message);
+                }
+            }
+
+            // Update the listbox
+            listBoxPacketOutput.Items.Add($"{string.Join(", ", packet)}");
+        }
+
+
+        private byte GetCommandByte()
+        {
+            // Process command byte (0xABCDEFGH)
+            byte commandByte = 0;
+
+            // A: Nothing
+
+            // B: Nothing
+
+            // C: Start Homing Sequence (0 = Off, 1 = On)
+            if (isStartHomingSequence)
+            {
+                commandByte |= (1 << 5);
+            }
+
+            // D: Magnet On (0 = Off, 1 = On)
+            if (isMagnetOn)
+            {
+                commandByte |= (1 << 4);
+            }
+
+            // E: X High Byte Escape (0 = Do Nothing, 1 = Set X High Byte to 255)
+            if (xHighByte == Byte.MaxValue)
+            {
+                commandByte |= (1 << 3);
+                xHighByte = Byte.MaxValue - 1;
+            }
+
+            // F: X Low Byte Escape (0 = Do Nothing, 1 = Set X Low Byte to 255)
+            if (xLowByte == Byte.MaxValue)
+            {
+                commandByte |= (1 << 2);
+                xLowByte = Byte.MaxValue - 1;
+            }
+
+            // G: Y High Byte Escape (0 = Do Nothing, 1 = Set Y High Byte to 255)
+            if (yHighByte == Byte.MaxValue)
+            {
+                commandByte |= (1 << 1);
+                yHighByte = Byte.MaxValue - 1;
+            }
+
+            // F: Y Low Byte Escape (0 = Do Nothing, 1 = Set Y Low Byte to 255)
+            if (yLowByte == Byte.MaxValue)
+            {
+                commandByte |= (1 << 0);
+                yLowByte = Byte.MaxValue - 1;
+            }
+
+            // Reset the boolean flags
+            isStartHomingSequence = false;
+            isMagnetOn = false;
+
+            return commandByte;
+        }
+
+        // ============================
+        // UI Rendering
+        // ============================
 
         private void gridPanel_Paint(object sender, PaintEventArgs e)
         {
@@ -214,64 +331,6 @@ namespace Pathfinding_Algorithm
             {
                 return Color.Orange;
             }
-        }
-    }
-
-    public class PriorityQueue<T>
-    {
-        private SortedDictionary<int, Queue<T>> _dict = new SortedDictionary<int, Queue<T>>();
-
-        public void Enqueue(T item, int priority)
-        {
-            if (!_dict.ContainsKey(priority))
-            {
-                _dict[priority] = new Queue<T>();
-            }
-            _dict[priority].Enqueue(item);
-        }
-
-        public T Dequeue()
-        {
-            if (_dict.Count == 0)
-            {
-                throw new InvalidOperationException("The priority queue is empty.");
-            }
-
-            var firstKey = _dict.Keys.GetEnumerator();
-            firstKey.MoveNext();
-            var key = firstKey.Current;
-
-            var item = _dict[key].Dequeue();
-            if (_dict[key].Count == 0)
-            {
-                _dict.Remove(key);
-            }
-            return item;
-        }
-
-        public int Count
-        {
-            get
-            {
-                int count = 0;
-                foreach (var queue in _dict.Values)
-                {
-                    count += queue.Count;
-                }
-                return count;
-            }
-        }
-
-        public bool Contains(T item)
-        {
-            foreach (var queue in _dict.Values)
-            {
-                if (queue.Contains(item))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }
