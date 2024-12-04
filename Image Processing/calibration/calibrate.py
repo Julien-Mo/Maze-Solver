@@ -19,7 +19,7 @@ imgpoints = []  # 2d points in image plane
 _img_shape = None
 
 # Load images
-images = glob.glob('*.jpg')
+images = glob.glob('*.png')
 if not images:
     print("No images found in the current directory.")
 else:
@@ -35,6 +35,8 @@ for fname in images:
     if _img_shape is None:
         _img_shape = img.shape[:2]
     else:
+        print(_img_shape, img.shape[:2])
+        print(fname)
         assert _img_shape == img.shape[:2], "All images must share the same size."
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

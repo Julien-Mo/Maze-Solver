@@ -9,59 +9,81 @@ namespace Image_Capture
 {
     public partial class Form1 : Form
     {
-        private VideoCapture capture;
-        private Mat frame;
-        private Bitmap image;
-        private bool isCameraRunning = false;
+        private VideoCapture _videoCapture;
+        private Timer _frameTimer;
         public Form1()
         {
             InitializeComponent();
+            InitializeWebcam();
         }
-        private void btnStartCamera_Click(object sender, EventArgs e)
+        private void InitializeWebcam()
         {
-            if (!isCameraRunning)
+            _videoCapture = new VideoCapture(1); // Open the default webcam
+            if (!_videoCapture.IsOpened())
             {
-                capture = new VideoCapture(); // Open default camera
-                capture.Open(1);
-
-                if (!capture.IsOpened())
-                {
-                    MessageBox.Show("Could not open camera.");
-                    return;
-                }
-
-                frame = new Mat();
-                isCameraRunning = true;
-
-                // Start a timer to capture frames
-                Timer timer = new Timer();
-                timer.Interval = 30; // Adjust as necessary
-                timer.Tick += (s, args) =>
-                {
-                    capture.Read(frame);
-                    if (!frame.Empty())
-                    {
-                        image = BitmapConverter.ToBitmap(frame);
-                        pictureBox1.Image = image;
-                    }
-                };
-                timer.Start();
+                MessageBox.Show("Unable to access the webcam.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
+
+            _frameTimer = new Timer { Interval = 33 }; // ~30 FPS
+            _frameTimer.Tick += FrameTimer_Tick;
+            _frameTimer.Start();
+        }
+        private void FrameTimer_Tick(object sender, EventArgs e)
+        {
+            using (var frame = new Mat())
+            {
+                if (_videoCapture.Read(frame) && !frame.Empty())
+                {
+                    pictureBox.Image?.Dispose(); // Dispose of the old image to prevent memory leaks
+
+                    // Resize frame to match the PictureBox dimensions
+                    using (var resizedFrame = frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height)))
+                    {
+                        pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame); // Convert Mat to Bitmap
+                    }
+                }
+            }
+        }
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _frameTimer?.Stop();
+            _frameTimer?.Dispose();
+
+            _videoCapture?.Release();
+            _videoCapture?.Dispose();
+
+            base.OnFormClosed(e);
         }
 
         private void btnCaptureImage_Click(object sender, EventArgs e)
         {
-            if (isCameraRunning && image != null)
+            using (var frame = new Mat())
             {
-                string filePath = $"CapturedImage.png";
-                image.Save(filePath);
-                MessageBox.Show($"Image saved at {filePath}");
-            }
-            else
-            {
-                MessageBox.Show("No image to capture.");
+                if (_videoCapture != null && _videoCapture.Read(frame) && !frame.Empty())
+                {
+                    // Save the image to a file
+                    const string fileName = "captured_image.png";
+                    frame.SaveImage(fileName);
+
+                    // Stop the timer and release the webcam
+                    _frameTimer.Stop();
+                    _videoCapture.Release();
+
+                    pictureBox.Image?.Dispose();
+                    using (var resizedFrame = frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height)))
+                    {
+                        pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame);
+                    }
+                    MessageBox.Show($"Image captured and saved as {fileName}", "Capture Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Failed to capture image.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
+
         private void btnRunPython_Click(object sender, EventArgs e)
         {
             try
@@ -100,18 +122,16 @@ namespace Image_Capture
             }
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        private void buttonReset_Click(object sender, EventArgs e)
         {
-            // Release resources when the form is closing
-            if (capture != null)
+            // Restart the webcam
+            if (_videoCapture == null || !_videoCapture.IsOpened())
             {
-                capture.Release();
-                capture.Dispose();
+                InitializeWebcam();
             }
-            if (frame != null)
-            {
-                frame.Dispose();
-            }
+
+            // Restart the frame timer
+            _frameTimer?.Start();
         }
     }
 }

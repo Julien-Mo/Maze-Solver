@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import json
 import os
+from crop import crop_to_defined_rectangle
 
 MAX_VALUE = 255
 BGR_LENGTH = 3
@@ -33,10 +34,13 @@ class Maze:
         self._kernel = np.ones(KERNEL, np.uint8)
 
     def run(self):
-        self.fix_distortion()
-        self.fix_skew()
+        self.show()
+        # self.fix_distortion()
+        # self.fix_skew()
+        self.image = crop_to_defined_rectangle(self.image_path)
         self.get_binary()
         self.get_markers()
+        self.show()
         self.get_output()
 
     def show(self, name="Maze"):
@@ -48,9 +52,9 @@ class Maze:
     def fix_distortion(self):
         """Undistorts the image using calibration parameters."""
         # Get DIM, K, D from calibrate.py
-        DIM = (1920, 1080)
-        K = np.array([[1435.8734039382937, 0.0, 883.6370522315407], [0.0, 1426.404376643103, 542.7057195251705], [0.0, 0.0, 1.0]])
-        D = np.array([[-0.16929718287443193], [2.862752075154555], [-22.961417453039385], [55.758246113631145]])
+        DIM=(640, 480)
+        K=np.array([[1682.3422653416046, 0.0, 305.6771779648561], [0.0, 1679.97188365957, 247.62506883350176], [0.0, 0.0, 1.0]])
+        D=np.array([[-2.42050319816367], [-20.191910272107908], [1322.3227019091546], [-16940.30308017363]])
         map1, map2 = cv.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv.CV_16SC2)
         self.image = cv.remap(self.image, map1, map2, interpolation=cv.INTER_LINEAR, borderMode=cv.BORDER_CONSTANT)
 
@@ -133,7 +137,7 @@ class Maze:
         largest_contour = max(contours, key=cv.contourArea)
         contour_mask = np.zeros_like(mask)
         cv.drawContours(contour_mask, [largest_contour], -1, MAX_VALUE, thickness=cv.FILLED)
-        dilated_mask = cv.dilate(contour_mask, self._kernel, iterations=MARKER_PROCESSING_ITERATIONS) # 1
+        dilated_mask = cv.dilate(contour_mask, self._kernel, iterations=1) # 1
         self.image[dilated_mask == MAX_VALUE] = 0
         return self._calculate_center(largest_contour)
 
@@ -147,6 +151,8 @@ class Maze:
 
 
 if __name__ == "__main__":
-    maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/test_maze2.jpg")
-    # maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/../Image Capture/bin/Debug/CapturedImage.png")
+    # maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/test_maze3.jpg")
+    maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/../Image Capture/bin/Debug/captured_image.png")
+    # maze = Maze(f"{os.path.dirname(os.path.realpath(__file__))}/../Pathfinding Algorithm/bin/Debug/CapturedImage.png")
     maze.run()
+    maze.show()
