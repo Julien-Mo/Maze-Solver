@@ -4,8 +4,9 @@
 
 
 
-#define BUFFER_SIZE 100
-const int SPEED = 400;
+#define BUFFER_SIZE 500
+const int SPEED = 600;
+const int SCALE = 60;
 volatile unsigned int buffer_count = 0;
 volatile unsigned char uart_buffer[BUFFER_SIZE];
 volatile unsigned int buffer_head = 0;
@@ -26,6 +27,7 @@ volatile char dirX = 0;
 volatile char dirY = 0;
 
 
+
 void setup_UART(void);
 void process_packet(void);
 void add_to_buffer(unsigned char byte);
@@ -33,6 +35,7 @@ unsigned char get_from_buffer(void);
 void send_UART_byte(unsigned char byte); // Function to send a single byte via UART
 void setup_stepper_timer(void);
 void homing_sequence(void);
+void setup_encoder_pins(void);
 
 /**
  *
@@ -40,9 +43,10 @@ void homing_sequence(void);
  */
 int main(void)
 {
-    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
     setup_UART();               // Setup UART
     setup_stepper_timer();
+    setup_encoder_pins();
 
     P3DIR |= (BIT4 | BIT5 | BIT6 | BIT7);
 
@@ -51,11 +55,16 @@ int main(void)
     // Continuously check for a new packet
     while(1){
         if (buffer_count < 60) {
-            send_UART_byte('A');
+            //send_UART_byte(0xFF);
         }
-        if ((buffer_head - buffer_tail + BUFFER_SIZE) % BUFFER_SIZE >= 6)
+        if ((buffer_head - buffer_tail + BUFFER_SIZE) % BUFFER_SIZE >= 4)
         {
-           if(ready) process_packet();  // Process if a full 4-byte packet is available
+           if(ready) {
+               send_UART_byte(0xFF);
+               send_UART_byte(currentX/SCALE);
+               send_UART_byte(currentY/SCALE);
+               process_packet();  // Process if a full 4-byte packet is available
+           }
         }
     }
 }
@@ -96,8 +105,8 @@ __interrupt void Timer1_A0_ISR(void)
             currentY += (dirY)? 1:-1;
             error += slope;
             if(error >= 0.5){
-                P3OUT |= BIT4; //P3.4 for X step;
                 currentX += (dirX)? 1:-1;
+                P3OUT |= BIT4; //P3.4 for X step;
                 error -= 1.0;
                 P3OUT &= ~BIT4;
             }
@@ -121,33 +130,27 @@ __interrupt void Timer1_A0_ISR(void)
 
 void process_packet(void)
 {
-    buffer_count -= 6;
+    //buffer_count -= 6;
     ready = 0;
-    volatile unsigned char start_byte, x_H, x_L, y_H, y_L, command;
+    volatile unsigned char start_byte, x, y, command;
     volatile unsigned int duty_cycle;
-    volatile unsigned char dir, dxH, dxL, dyH, dyL, magOn, home;
+    volatile unsigned char dir, fX, fY, magOn, home;
 
     start_byte = get_from_buffer(); // Get start byte (255)
     if (start_byte != 255) return;  // Ignore if start byte isn't 255
 
-    x_H = get_from_buffer();
-    if (x_H == 255) return;
-    x_L = get_from_buffer();
-    if (x_L == 255) return;
-    y_H = get_from_buffer();
-    if (y_H == 255) return;
-    y_L = get_from_buffer();
-    if (y_L == 255) return;
+    x = get_from_buffer();
+    if (x == 255) return;
+    y = get_from_buffer();
+    if (y == 255) return;
     command = get_from_buffer();
     if (command == 255) return;
 
     //Command = 00ABCDEF = 0,0,home,MagOn,dxH,dxL,dyH,dyL
     if(command)
     {
-        dyL = command & BIT0; if(dyL) y_L = 255;
-        dyH = command & BIT1; if(dyH) y_H = 255;
-        dxL = command & BIT2; if(dxL) x_L = 255;
-        dxH = command & BIT3; if(dxH) x_H = 255;
+        fY = command & BIT0; if(fY) y = 255;
+        fX = command & BIT1; if(fX) x = 255;
         magOn = command & BIT4;
         home = command & BIT5;
 
@@ -164,8 +167,8 @@ void process_packet(void)
     else
     {
 
-        targetX = (x_H << 8) | x_L;
-        targetY = (y_H << 8) | y_L;
+        targetX = x * SCALE;
+        targetY = y * SCALE;
 
         //Implement Bresenham's line algorithm
         int dX = abs(targetX - currentX);
@@ -203,11 +206,11 @@ void process_packet(void)
 
         //Direction control
         if(currentX < targetX) {
-            P3OUT |= BIT6;
+            P3OUT &= ~BIT6;
             dirX = 1;
         }//
         else {
-            P3OUT &= ~BIT6;
+            P3OUT |= BIT6;
             dirX = 0;
         }//
         if(currentY < targetY) {
@@ -228,24 +231,41 @@ void process_packet(void)
 void homing_sequence(void){
     //Implement Homing sequence
         homing = 1;
+        PJDIR |= BIT0;
+        PJOUT |= BIT0;
         xLim = 0;
         yLim = 0;
-        P3OUT &= ~BIT6;
-        P3OUT &= ~BIT5;
+        P3OUT |= BIT6;
+        P3OUT |= BIT7;
         while(!xLim){
             P3OUT |= BIT4;
+            _delay_cycles(24000);
             P3OUT &= ~BIT4;
-            _delay_cycles(2400000); //0.1 second delay;
+            _delay_cycles(240000-24000); //0.01 second delay;
         }
+        PJOUT &= ~BIT0;
         currentX = 0;
         while(!yLim){
             P3OUT |= BIT5;
+            _delay_cycles(24000);
             P3OUT &= ~BIT5;
-            _delay_cycles(2400000); //0.1 second delay;
+            _delay_cycles(240000-24000); //0.01 second delay;
         }
+        PJOUT |= BIT0;
         currentY = 0;
         homing = 0;
         ready = 1;
+        return;
+}
+
+void setup_encoder_pins(void)
+{
+    // Set P1.0 and P1.1 as input for the quadrature encoder
+    P1DIR &= ~(BIT2 | BIT1);
+    P1REN |= BIT2 | BIT1;        // Enable pull-up/pull-down resistors
+    P1OUT |= BIT2 | BIT1;        // Set resistors as pull-up
+    P1IES &= ~(BIT2 | BIT1);     // Trigger on rising edge initially
+    P1IE |= BIT2 | BIT1;         // Enable interrupts on P1.0 and P1.1
 }
 
 // Port 1 interrupt service routine for encoder
@@ -259,8 +279,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif
 {
 
-    if(P1IN & BIT1) xLim = 1;
-    else if(P1IN & BIT2) yLim = 1;
+    PJDIR |= BIT1 | BIT2;
+
+    if(P1IFG & BIT1) xLim = 1;
+    else if(P1IFG & BIT2) yLim = 1;
     P1IFG &= ~(BIT2 | BIT1);  // Clear interrupt flags for P1.0 and P1.1
 }
 
