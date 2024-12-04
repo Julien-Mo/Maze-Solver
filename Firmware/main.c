@@ -5,7 +5,7 @@
 
 
 #define BUFFER_SIZE 500
-const int SPEED = 600;
+const int SPEED = 800;
 const int SCALE = 60;
 volatile unsigned int buffer_count = 0;
 volatile unsigned char uart_buffer[BUFFER_SIZE];
@@ -241,7 +241,7 @@ void homing_sequence(void){
             P3OUT |= BIT4;
             _delay_cycles(24000);
             P3OUT &= ~BIT4;
-            _delay_cycles(240000-24000); //0.01 second delay;
+            _delay_cycles(60000-24000); //0.01 second delay;
         }
         PJOUT &= ~BIT0;
         currentX = 0;
@@ -249,7 +249,7 @@ void homing_sequence(void){
             P3OUT |= BIT5;
             _delay_cycles(24000);
             P3OUT &= ~BIT5;
-            _delay_cycles(240000-24000); //0.01 second delay;
+            _delay_cycles(60000-24000); //0.01 second delay;
         }
         PJOUT |= BIT0;
         currentY = 0;
