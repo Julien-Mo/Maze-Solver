@@ -40,7 +40,7 @@
             this.pictureBox.Location = new System.Drawing.Point(6, 38);
             this.pictureBox.Margin = new System.Windows.Forms.Padding(2);
             this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(549, 382);
+            this.pictureBox.Size = new System.Drawing.Size(640, 360);
             this.pictureBox.TabIndex = 1;
             this.pictureBox.TabStop = false;
             // 
@@ -78,7 +78,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(561, 427);
+            this.ClientSize = new System.Drawing.Size(727, 486);
             this.Controls.Add(this.buttonReset);
             this.Controls.Add(this.btnRunPython);
             this.Controls.Add(this.btnCaptureImage);

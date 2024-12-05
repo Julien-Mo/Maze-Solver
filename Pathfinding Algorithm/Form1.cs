@@ -16,8 +16,8 @@ namespace Pathfinding_Algorithm
     public partial class Form1 : Form
     {
         // Constants
-        private const int GridHeight = 16 * 3;
-        private const int GridWidth = 22 * 3;
+        private const int GridHeight = 63;
+        private const int GridWidth = 65;
         private const int PointSize = 6;
         private const int StraightCost = 10;
         private const int DiagonalCost = 14;
@@ -93,8 +93,8 @@ namespace Pathfinding_Algorithm
             var mazeData = JsonConvert.DeserializeObject<MazeData>(File.ReadAllText(filePath));
 
             maze = mazeData.Maze;
-            start = new Point(mazeData.Start[0], mazeData.Start[1]);
-            end = new Point(mazeData.End[0], mazeData.End[1]);
+            end = new Point(mazeData.Start[0], mazeData.Start[1]);
+            start = new Point(mazeData.End[0], mazeData.End[1]);
         }
 
         // ============================
@@ -176,41 +176,49 @@ namespace Pathfinding_Algorithm
 
         private void ReconstructPath(Point currentNode, Point?[,] parents)
         {
-            Stack<Point> path = new Stack<Point>();
+            // Create a list to store the path from end to start
+            List<Point> path = new List<Point>();
 
-            // Traverse the path from end to start and push points onto the stack
-            while (currentNode != start)
+            // Traverse the path from end to start
+            Point node = currentNode;
+            while (node != start)
             {
-                path.Push(currentNode);
-                currentNode = parents[currentNode.Y, currentNode.X].Value;
+                path.Add(node);
+                node = parents[node.Y, node.X].Value;
             }
-            path.Push(start);
+            path.Add(start);
+
+            // Reverse the list to get the path from start to end
+            path.Reverse();
 
             // Combine the path to straight-line segments
-            var pathList = path.ToList();
             List<List<Point>> segments = new List<List<Point>>();
-            List<Point> currentSegment = new List<Point> { pathList[0] };
+            List<Point> currentSegment = new List<Point> { path[0] };
 
-            for (int i = 1; i < pathList.Count; i++)
+            for (int i = 1; i < path.Count; i++)
             {
-                int dx = pathList[i].X - pathList[i - 1].X;
-                int dy = pathList[i].Y - pathList[i - 1].Y;
+                int dx = path[i].X - path[i - 1].X;
+                int dy = path[i].Y - path[i - 1].Y;
                 if (i > 1)
                 {
-                    int prevDx = pathList[i - 1].X - pathList[i - 2].X;
-                    int prevDy = pathList[i - 1].Y - pathList[i - 2].Y;
+                    int prevDx = path[i - 1].X - path[i - 2].X;
+                    int prevDy = path[i - 1].Y - path[i - 2].Y;
                     if (dx != prevDx || dy != prevDy)
                     {
                         segments.Add(new List<Point>(currentSegment));
                         currentSegment.Clear();
                     }
                 }
-                currentSegment.Add(pathList[i]);
+                currentSegment.Add(path[i]);
             }
             if (currentSegment.Count > 0)
             {
                 segments.Add(currentSegment);
             }
+
+            isMagnetOn = true;
+            var packet = CreatePacket(start);
+            SendPacket(packet);
 
             // Send packets for each segment
             foreach (var segment in segments)
@@ -222,7 +230,7 @@ namespace Pathfinding_Algorithm
                 PaintPoint(startNode, Color.Blue);
                 PaintPoint(endNode, Color.Blue);
                 isMagnetOn = true;
-                var packet = CreatePacket(endNode);
+                packet = CreatePacket(endNode);
                 SendPacket(packet);
             }
         }
@@ -257,7 +265,7 @@ namespace Pathfinding_Algorithm
         private byte[] CreatePacket(Point currentNode)
         {
             xByte = (byte)(currentNode.X);
-            yByte =  (byte)(currentNode.Y);
+            yByte =  (byte)(GridHeight - currentNode.Y);
             commandByte = GetCommandByte();
             return new byte[]
             {
@@ -390,6 +398,7 @@ namespace Pathfinding_Algorithm
                 serialPort1.Close();
                 btnConnect.Text = "Connect Serial";
             }
+            //PaintPoint(new Point(3, 7), Color.Red);
         }
 
         private void btnSolve_Click(object sender, EventArgs e)
@@ -456,7 +465,7 @@ namespace Pathfinding_Algorithm
                 //capture.Dispose();
 
                 // Save the captured image
-                string filePath = $"CapturedImage.png";
+                string filePath = $"captured_image.png";
                 image.Save(filePath);
 
                 // Display the captured image in the PictureBox
@@ -549,6 +558,8 @@ namespace Pathfinding_Algorithm
                         }
                     }
                 }
+
+                //Thread.Sleep(1000);
 
                 // Reload maze data
                 InitializeMaze();

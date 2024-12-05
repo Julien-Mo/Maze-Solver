@@ -59,22 +59,22 @@
             // 
             this.gridPanel.Location = new System.Drawing.Point(12, 39);
             this.gridPanel.Name = "gridPanel";
-            this.gridPanel.Size = new System.Drawing.Size(445, 326);
+            this.gridPanel.Size = new System.Drawing.Size(463, 480);
             this.gridPanel.TabIndex = 2;
             this.gridPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.gridPanel_Paint);
             // 
             // listBoxTestOutput
             // 
             this.listBoxTestOutput.FormattingEnabled = true;
-            this.listBoxTestOutput.Location = new System.Drawing.Point(1046, 10);
+            this.listBoxTestOutput.Location = new System.Drawing.Point(1395, 402);
             this.listBoxTestOutput.Name = "listBoxTestOutput";
-            this.listBoxTestOutput.Size = new System.Drawing.Size(73, 355);
+            this.listBoxTestOutput.Size = new System.Drawing.Size(73, 173);
             this.listBoxTestOutput.TabIndex = 3;
             // 
             // listBoxPacketOutput
             // 
             this.listBoxPacketOutput.FormattingEnabled = true;
-            this.listBoxPacketOutput.Location = new System.Drawing.Point(912, 10);
+            this.listBoxPacketOutput.Location = new System.Drawing.Point(1386, 12);
             this.listBoxPacketOutput.Name = "listBoxPacketOutput";
             this.listBoxPacketOutput.Size = new System.Drawing.Size(128, 355);
             this.listBoxPacketOutput.TabIndex = 4;
@@ -123,7 +123,7 @@
             this.pictureBox1.Location = new System.Drawing.Point(480, 52);
             this.pictureBox1.Margin = new System.Windows.Forms.Padding(2);
             this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(600, 450);
+            this.pictureBox1.Size = new System.Drawing.Size(879, 534);
             this.pictureBox1.TabIndex = 9;
             this.pictureBox1.TabStop = false;
             this.pictureBox1.Paint += new System.Windows.Forms.PaintEventHandler(this.pictureBox1_Paint);
