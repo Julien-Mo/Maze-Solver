@@ -8,7 +8,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Windows.Forms;
 using Point = System.Drawing.Point;
 
@@ -211,27 +210,24 @@ namespace Maze_Solver
         private void ReconstructPath(Point currentNode, Point?[,] parents)
         {
             // Reconstruct the path from the end node to the start node
-            List<Point> path = new List<Point>();
-            Point node = currentNode;
-            while (node != start)
+            var path = new List<Point>();
+            while (currentNode != start)
             {
-                path.Add(node);
-                node = parents[node.Y, node.X].Value;
+                path.Add(currentNode);
+                currentNode = parents[currentNode.Y, currentNode.X].Value;
             }
             path.Add(start);
             path.Reverse();
 
-            // Combine the path to straight-line segments
-            List<List<Point>> segments = new List<List<Point>>();
-            List<Point> currentSegment = new List<Point> { path[0] };
+            // Group path into straight-line segments
+            var segments = new List<List<Point>>();
+            var currentSegment = new List<Point> { path[0] };
             for (int i = 1; i < path.Count; i++)
             {
-                int dx = path[i].X - path[i - 1].X;
-                int dy = path[i].Y - path[i - 1].Y;
+                var (dx, dy) = (path[i].X - path[i - 1].X, path[i].Y - path[i - 1].Y);
                 if (i > 1)
                 {
-                    int prevDx = path[i - 1].X - path[i - 2].X;
-                    int prevDy = path[i - 1].Y - path[i - 2].Y;
+                    var (prevDx, prevDy) = (path[i - 1].X - path[i - 2].X, path[i - 1].Y - path[i - 2].Y);
                     if (dx != prevDx || dy != prevDy)
                     {
                         segments.Add(new List<Point>(currentSegment));
@@ -240,24 +236,21 @@ namespace Maze_Solver
                 }
                 currentSegment.Add(path[i]);
             }
-            if (currentSegment.Count > 0)
-            {
-                segments.Add(currentSegment);
-            }
+            if (currentSegment.Any()) segments.Add(currentSegment);
+
             lastEndpoint = start;
 
-            // Send packets for each segment
+            // Process each segment
             foreach (var segment in segments)
             {
-                var startNode = segment.First();
                 var endNode = segment.Last();
                 isMagnetOn = true;
-                var packet = CreatePacket(endNode);
-                packets.Add(packet);
+                packets.Add(CreatePacket(endNode));
                 DrawLine(endNode);
             }
             lastEndpoint = null;
         }
+
 
         private int CalculateCost(Point a, Point b)
         {
@@ -505,18 +498,13 @@ namespace Maze_Solver
             captureTimer?.Start();
             isCameraRunning = true;
 
-            // Reset packets
+            // Reset the packets queue
             packets.Clear();
-        }
 
-        private void buttonHome_Click(object sender, EventArgs e)
-        {
             // Home the stepper motors
             isStartHomingSequence = true;
             var packet = CreatePacket(home);
             SendPacket(packet);
         }
     }
-
-
 }
