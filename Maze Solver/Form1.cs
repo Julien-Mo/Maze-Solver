@@ -42,9 +42,7 @@ namespace Maze_Solver
         // Image Processing
         private VideoCapture capture;
         private Mat frame;
-        private Bitmap image;
-        private bool isCameraRunning = false;
-        private Timer captureTimer = new Timer();
+        private Timer captureTimer;
 
         public Form1()
         {
@@ -63,7 +61,7 @@ namespace Maze_Solver
             comboBoxSerialPorts.Items.AddRange(System.IO.Ports.SerialPort.GetPortNames());
             if (comboBoxSerialPorts.Items.Count == 0)
             {
-                comboBoxSerialPorts.Text = "No COM ports!";
+                comboBoxSerialPorts.Text = "No ports!";
             }
             else
             {
@@ -77,34 +75,32 @@ namespace Maze_Solver
         }
 
         // ============================
-        // Image Capture & Processing
+        // Image Capture
         // ============================
 
         private void InitializeCamera()
         {
-            if (!isCameraRunning)
+            capture = new VideoCapture(1);
+            if (!capture.IsOpened())
             {
-                // Open camera
-                capture = new VideoCapture(1);
-                capture.Open(1);
-                frame = new Mat();
-                isCameraRunning = true;
+                MessageBox.Show("Unable to access the camera.");
+                return;
+            }
 
-                // Start a timer to capture frames
-                captureTimer.Interval = 30;
-                captureTimer.Tick += (s, args) =>
-                {
-                    capture.Read(frame);
-                    if (!frame.Empty())
-                    {
-                        using (var resizedFrame = frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height)))
-                        {
-                            pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame);
-                        }
-                        image = BitmapConverter.ToBitmap(frame);
-                    }
-                };
-                captureTimer.Start();
+            frame = new Mat();
+            captureTimer = new Timer { Interval = 30 };
+            captureTimer.Tick += (s, args) => CaptureFrame();
+            captureTimer.Start();
+        }
+
+        private void CaptureFrame()
+        {
+            capture.Read(frame);
+            if (!frame.Empty())
+            {
+                pictureBox.Image = BitmapConverter.ToBitmap(
+                    frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height))
+                );
             }
         }
 
@@ -411,14 +407,16 @@ namespace Maze_Solver
 
         private void btnCapture_Click(object sender, EventArgs e)
         {
-            if (isCameraRunning)
+            if (frame != null && !frame.Empty())
             {
-                image.Save($"captured_image.png");
-                captureTimer?.Stop();
-                isCameraRunning = false;
-                using (var resizedFrame = frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height)))
+                try
                 {
-                    pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame);
+                    captureTimer?.Stop();
+                    BitmapConverter.ToBitmap(frame).Save("captured_image.png");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error saving image: {ex.Message}");
                 }
             }
             else
@@ -429,10 +427,11 @@ namespace Maze_Solver
 
         private void buttonProcess_Click(object sender, EventArgs e)
         {
+            captureTimer?.Stop();
             // Get the path of the application
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string relativeScriptPath = @"..\..\..\Image Processing\image_processing.py";
-            string relativeImagePath = @"..\..\..\Image Processing\processed_image.jpg";
+            string relativeImagePath = @"..\..\..\Image Processing\processed_image.png";
             string pythonScriptPath = Path.GetFullPath(Path.Combine(baseDir, relativeScriptPath));
             string processedImagePath = Path.GetFullPath(Path.Combine(baseDir, relativeImagePath));
 
@@ -490,13 +489,12 @@ namespace Maze_Solver
 
         private void buttonReset_Click(object sender, EventArgs e)
         {
-            // Restart the webcam
+            // Restart the camera
             if (capture == null || !capture.IsOpened())
             {
                 InitializeCamera();
             }
             captureTimer?.Start();
-            isCameraRunning = true;
 
             // Reset the packets queue
             packets.Clear();
@@ -505,6 +503,15 @@ namespace Maze_Solver
             isStartHomingSequence = true;
             var packet = CreatePacket(home);
             SendPacket(packet);
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            captureTimer?.Stop();
+            captureTimer?.Dispose();
+            capture?.Release();
+            capture?.Dispose();
+            frame?.Dispose();
         }
     }
 }
