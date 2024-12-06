@@ -25,6 +25,7 @@ volatile char xLim = 0;
 volatile char yLim = 0;
 volatile char dirX = 0;
 volatile char dirY = 0;
+volatile char step_flag = 0;
 
 
 
@@ -36,6 +37,7 @@ void send_UART_byte(unsigned char byte); // Function to send a single byte via U
 void setup_stepper_timer(void);
 void homing_sequence(void);
 void setup_encoder_pins(void);
+void step_motor(void);
 
 /**
  *
@@ -49,13 +51,15 @@ int main(void)
     setup_encoder_pins();
 
     P3DIR |= (BIT4 | BIT5 | BIT6 | BIT7);
+    P1DIR |= (BIT0);
 
     __bis_SR_register(GIE);     // Enable global interrupts
 
     // Continuously check for a new packet
     while(1){
-        if (buffer_count < 60) {
-            //send_UART_byte(0xFF);
+        if (step_flag) {
+            step_motor();
+            step_flag = 0;
         }
         if ((buffer_head - buffer_tail + BUFFER_SIZE) % BUFFER_SIZE >= 4)
         {
@@ -85,48 +89,55 @@ void setup_stepper_timer()
 __interrupt void Timer1_A0_ISR(void)
 {
     P1OUT ^= BIT6;
-    if(numStep > 0 && !homing){
-        numStep--;
-        switch (dominantAxis){
-        case 'X':
-            P3OUT |= BIT4; //P3.4 for X step
-            currentX += (dirX)? 1:-1;
-            error += slope;
-            if(error >= 0.5){
-                currentY += (dirY)? 1:-1;
-                P3OUT |= BIT5; //P3.5 for Y step;
-                error -= 1.0;
-                P3OUT &= ~BIT5;
-            }
-            P3OUT &= ~BIT4;
-            break;
-        case 'Y':
-            P3OUT |= BIT5; //P3.5 for Y step
-            currentY += (dirY)? 1:-1;
-            error += slope;
-            if(error >= 0.5){
-                currentX += (dirX)? 1:-1;
-                P3OUT |= BIT4; //P3.4 for X step;
-                error -= 1.0;
-                P3OUT &= ~BIT4;
-            }
-            P3OUT &= ~BIT5;
-            break;
-        case 0:
-            P3OUT |= (BIT4 | BIT5);
-            currentX += (dirX)? 1:-1;
-            currentY += (dirY)? 1:-1;
-            P3OUT &= ~(BIT4 | BIT5);
-            break;
-        }
-    }
-    else if(homing) {return;}
-    else ready = 1;
-
+    step_flag = 1;
 
 }
 
 //UART FUNCTIONS
+
+void step_motor(void){
+    if(numStep > 0 && !homing){
+            numStep--;
+            switch (dominantAxis){
+            case 'X':
+                P3OUT |= BIT4; //P3.4 for X step
+                currentX += (dirX)? 1:-1;
+                error += slope;
+                if(error >= 0.5){
+                    currentY += (dirY)? 1:-1;
+                    P3OUT |= BIT5; //P3.5 for Y step;
+                    _delay_cycles(2400);
+                    error -= 1.0;
+                    P3OUT &= ~BIT5;
+                }
+                P3OUT &= ~BIT4;
+                break;
+            case 'Y':
+                P3OUT |= BIT5; //P3.5 for Y step
+                currentY += (dirY)? 1:-1;
+                error += slope;
+                if(error >= 0.5){
+                    currentX += (dirX)? 1:-1;
+                    P3OUT |= BIT4; //P3.4 for X step;
+                    _delay_cycles(2400);
+                    error -= 1.0;
+                    P3OUT &= ~BIT4;
+                }
+                P3OUT &= ~BIT5;
+                break;
+            case 0:
+                P3OUT |= (BIT4 | BIT5);
+                currentX += (dirX)? 1:-1;
+                currentY += (dirY)? 1:-1;
+                _delay_cycles(2400);
+                P3OUT &= ~(BIT4 | BIT5);
+                break;
+            }
+        }
+        else if(homing) {return;}
+        else ready = 1;
+
+}
 
 void process_packet(void)
 {
@@ -233,23 +244,36 @@ void homing_sequence(void){
         homing = 1;
         PJDIR |= BIT0;
         PJOUT |= BIT0;
+
+
+        P3OUT &= ~BIT6;
+        P3OUT &= ~BIT7;
+        int i = 0;
+        for(i = 0; i < 60; i++){ //Back Up First
+            P3OUT |= BIT4;
+            P3OUT |= BIT5;
+            _delay_cycles(24000);
+            P3OUT &= ~BIT4;
+            P3OUT &= ~BIT5;
+            _delay_cycles(24000); //0.01 second delay;
+        }
         xLim = 0;
         yLim = 0;
         P3OUT |= BIT6;
         P3OUT |= BIT7;
-        while(!xLim){
+        while(!xLim){ //Home X
             P3OUT |= BIT4;
-            _delay_cycles(24000);
+            _delay_cycles(24000); //0.001 second delay;
             P3OUT &= ~BIT4;
-            _delay_cycles(60000-24000); //0.01 second delay;
+            _delay_cycles(24000); //0.001 second delay;
         }
         PJOUT &= ~BIT0;
         currentX = 0;
-        while(!yLim){
+        while(!yLim){ //Home Y
             P3OUT |= BIT5;
-            _delay_cycles(24000);
+            _delay_cycles(24000); //0.001 second delay;
             P3OUT &= ~BIT5;
-            _delay_cycles(60000-24000); //0.01 second delay;
+            _delay_cycles(24000); //0.001 second delay;
         }
         PJOUT |= BIT0;
         currentY = 0;
@@ -324,6 +348,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
 #error Compiler not supported!
 #endif
 {
+
     unsigned char received_byte = UCA0RXBUF;  // Read received byte
     add_to_buffer(received_byte);             // Add to circular buffer
 }
