@@ -3,6 +3,7 @@ using OpenCvSharp.Extensions;
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Image_Capture
@@ -18,14 +19,14 @@ namespace Image_Capture
         }
         private void InitializeWebcam()
         {
-            _videoCapture = new VideoCapture(1); // Open the default webcam
+            _videoCapture = new VideoCapture(1);
             if (!_videoCapture.IsOpened())
             {
                 MessageBox.Show("Unable to access the webcam.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            _frameTimer = new Timer { Interval = 33 }; // ~30 FPS
+            _frameTimer = new Timer { Interval = 33 };
             _frameTimer.Tick += FrameTimer_Tick;
             _frameTimer.Start();
         }
@@ -35,12 +36,12 @@ namespace Image_Capture
             {
                 if (_videoCapture.Read(frame) && !frame.Empty())
                 {
-                    pictureBox.Image?.Dispose(); // Dispose of the old image to prevent memory leaks
+                    pictureBox.Image?.Dispose();
 
                     // Resize frame to match the PictureBox dimensions
                     using (var resizedFrame = frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height)))
                     {
-                        pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame); // Convert Mat to Bitmap
+                        pictureBox.Image = BitmapConverter.ToBitmap(resizedFrame);
                     }
                 }
             }
@@ -93,7 +94,9 @@ namespace Image_Capture
 
                 // Calculate the relative path to the Python script
                 string relativePath = @"..\..\..\Image Processing\image_processing.py";
+                string relativeImagePath = @"..\..\..\Image Processing\processed_image.png";
                 string pythonScriptPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, relativePath));
+                string processedImagePath = Path.GetFullPath(Path.Combine(baseDir, relativeImagePath));
 
                 // Check if the Python script exists
                 if (!System.IO.File.Exists(pythonScriptPath))
@@ -105,14 +108,22 @@ namespace Image_Capture
                 // Configure the process to run Python
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "python", // Ensure 'python' is in PATH
-                    Arguments = $"\"{pythonScriptPath}\"", // Path to Python script
-                    UseShellExecute = false,   // Don't use shell execution
-                    CreateNoWindow = true,     // Run without creating a command prompt window
+                    FileName = "python",
+                    Arguments = $"\"{pythonScriptPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
                 };
 
                 // Start the Python process
-                Process.Start(psi);
+                var process = Process.Start(psi);
+                process.WaitForExit();
+
+                // Load and resize the image to fit the pictureBox
+                using (var originalImage = new Bitmap(processedImagePath))
+                {
+                    var resizedImage = new Bitmap(originalImage, pictureBox.Size);
+                    pictureBox.Image = resizedImage;
+                }
 
                 MessageBox.Show("Python script executed!");
             }

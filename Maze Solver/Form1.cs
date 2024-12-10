@@ -43,6 +43,7 @@ namespace Maze_Solver
         private VideoCapture capture;
         private Mat frame;
         private Timer captureTimer;
+        private bool isCameraDisplayed = true;
 
         public Form1()
         {
@@ -83,7 +84,7 @@ namespace Maze_Solver
             capture = new VideoCapture(1);
             if (!capture.IsOpened())
             {
-                MessageBox.Show("Unable to access the camera.");
+                MessageBox.Show("Unable to access the camera.");    
                 return;
             }
 
@@ -98,8 +99,14 @@ namespace Maze_Solver
             capture.Read(frame);
             if (!frame.Empty())
             {
-                pictureBox.Image = BitmapConverter.ToBitmap(
-                    frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height))
+                if (isCameraDisplayed)
+                {
+                    pictureBox.Image = BitmapConverter.ToBitmap(
+                        frame.Resize(new OpenCvSharp.Size(pictureBox.Width, pictureBox.Height))
+                    );
+                }
+                pictureBoxLiveCamera.Image = BitmapConverter.ToBitmap(
+                    frame.Resize(new OpenCvSharp.Size(pictureBoxLiveCamera.Width, pictureBoxLiveCamera.Height))
                 );
             }
         }
@@ -235,6 +242,8 @@ namespace Maze_Solver
             if (currentSegment.Any()) segments.Add(currentSegment);
 
             lastEndpoint = start;
+            isMagnetOn = true;
+            packets.Add(CreatePacket(start));
 
             // Process each segment
             foreach (var segment in segments)
@@ -354,7 +363,7 @@ namespace Maze_Solver
 
             using (Graphics g = Graphics.FromImage(pictureBox.Image))
             {
-                using (Pen pen = new Pen(Color.Blue, 2)) // Set the pen with the specified color and thickness
+                using (Pen pen = new Pen(Color.Blue, 2))
                 {
                     // Scale the coordinates based on the PictureBox dimensions
                     float scaleX = (float)pictureBox.Width / GridWidth;
@@ -369,11 +378,10 @@ namespace Maze_Solver
                     g.DrawLine(pen, scaledStartNode, scaledEndNode);
                 }
             }
-
-            // Update the last endpoint to the current endNode
             lastEndpoint = endNode;
 
-            pictureBox.Invalidate(); // Refresh the PictureBox to show the updated image
+            // Refresh the PictureBox to show the updated image
+            pictureBox.Invalidate();
         }
 
         // ============================
@@ -387,7 +395,7 @@ namespace Maze_Solver
                 try
                 {
                     serialPort.Open();
-                    btnConnect.Text = "Disconnect Serial";
+                    btnConnect.Text = "Disconnect";
                 }
                 catch (System.IO.IOException)
                 {
@@ -401,7 +409,7 @@ namespace Maze_Solver
             else
             {
                 serialPort.Close();
-                btnConnect.Text = "Connect Serial";
+                btnConnect.Text = "Connect";
             }
         }
 
@@ -411,7 +419,7 @@ namespace Maze_Solver
             {
                 try
                 {
-                    captureTimer?.Stop();
+                    isCameraDisplayed = false;
                     BitmapConverter.ToBitmap(frame).Save("captured_image.png");
                 }
                 catch (Exception ex)
@@ -425,9 +433,8 @@ namespace Maze_Solver
             }
         }
 
-        private void buttonProcess_Click(object sender, EventArgs e)
+        private void btnProcess_Click(object sender, EventArgs e)
         {
-            captureTimer?.Stop();
             // Get the path of the application
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string relativeScriptPath = @"..\..\..\Image Processing\image_processing.py";
@@ -442,14 +449,14 @@ namespace Maze_Solver
                 return;
             }
 
-            // Configure the process to run Python
+            // Configure the process to run Python OpenCV script to process the image
             var psi = new ProcessStartInfo
             {
-                FileName = "python", // Ensure 'python' is in PATH
-                Arguments = $"\"{pythonScriptPath}\"", // Path to Python script
-                UseShellExecute = false,   // Don't use shell execution
-                CreateNoWindow = true,     // Run without creating a command prompt window
-                RedirectStandardOutput = true, // Capture output
+                FileName = "python",
+                Arguments = $"\"{pythonScriptPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
 
@@ -487,14 +494,14 @@ namespace Maze_Solver
             }
         }
 
-        private void buttonReset_Click(object sender, EventArgs e)
+        private void btnReset_Click(object sender, EventArgs e)
         {
             // Restart the camera
             if (capture == null || !capture.IsOpened())
             {
                 InitializeCamera();
             }
-            captureTimer?.Start();
+            isCameraDisplayed = true;
 
             // Reset the packets queue
             packets.Clear();
