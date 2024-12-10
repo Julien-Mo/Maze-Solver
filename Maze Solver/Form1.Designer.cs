@@ -47,12 +47,12 @@
             this.comboBoxSerialPorts.Location = new System.Drawing.Point(24, 23);
             this.comboBoxSerialPorts.Margin = new System.Windows.Forms.Padding(6);
             this.comboBoxSerialPorts.Name = "comboBoxSerialPorts";
-            this.comboBoxSerialPorts.Size = new System.Drawing.Size(238, 33);
+            this.comboBoxSerialPorts.Size = new System.Drawing.Size(150, 33);
             this.comboBoxSerialPorts.TabIndex = 6;
             // 
             // btnConnect
             // 
-            this.btnConnect.Location = new System.Drawing.Point(278, 19);
+            this.btnConnect.Location = new System.Drawing.Point(186, 19);
             this.btnConnect.Margin = new System.Windows.Forms.Padding(6);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(150, 44);
@@ -63,7 +63,7 @@
             // 
             // btnCapture
             // 
-            this.btnCapture.Location = new System.Drawing.Point(440, 19);
+            this.btnCapture.Location = new System.Drawing.Point(348, 19);
             this.btnCapture.Margin = new System.Windows.Forms.Padding(6);
             this.btnCapture.Name = "btnCapture";
             this.btnCapture.Size = new System.Drawing.Size(150, 44);
@@ -74,7 +74,7 @@
             // 
             // btnSolve
             // 
-            this.btnSolve.Location = new System.Drawing.Point(764, 19);
+            this.btnSolve.Location = new System.Drawing.Point(672, 19);
             this.btnSolve.Margin = new System.Windows.Forms.Padding(6);
             this.btnSolve.Name = "btnSolve";
             this.btnSolve.Size = new System.Drawing.Size(150, 44);
@@ -85,7 +85,7 @@
             // 
             // btnMove
             // 
-            this.btnMove.Location = new System.Drawing.Point(926, 19);
+            this.btnMove.Location = new System.Drawing.Point(834, 19);
             this.btnMove.Margin = new System.Windows.Forms.Padding(6);
             this.btnMove.Name = "btnMove";
             this.btnMove.Size = new System.Drawing.Size(150, 44);
@@ -96,7 +96,7 @@
             // 
             // buttonReset
             // 
-            this.buttonReset.Location = new System.Drawing.Point(1088, 19);
+            this.buttonReset.Location = new System.Drawing.Point(996, 19);
             this.buttonReset.Margin = new System.Windows.Forms.Padding(6);
             this.buttonReset.Name = "buttonReset";
             this.buttonReset.Size = new System.Drawing.Size(150, 44);
@@ -120,7 +120,7 @@
             // 
             // buttonProcess
             // 
-            this.buttonProcess.Location = new System.Drawing.Point(602, 19);
+            this.buttonProcess.Location = new System.Drawing.Point(510, 19);
             this.buttonProcess.Margin = new System.Windows.Forms.Padding(6);
             this.buttonProcess.Name = "buttonProcess";
             this.buttonProcess.Size = new System.Drawing.Size(150, 44);
@@ -133,7 +133,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1255, 814);
+            this.ClientSize = new System.Drawing.Size(1176, 822);
             this.Controls.Add(this.buttonProcess);
             this.Controls.Add(this.pictureBox);
             this.Controls.Add(this.buttonReset);
@@ -145,6 +145,7 @@
             this.Margin = new System.Windows.Forms.Padding(6);
             this.Name = "Form1";
             this.Text = "Maze Solver";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
             this.ResumeLayout(false);
 
