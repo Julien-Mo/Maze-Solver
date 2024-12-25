@@ -15,7 +15,7 @@ https://github.com/user-attachments/assets/b1059e25-cb8a-4c52-96f4-ead0c01633b7
 ## Installation
 1. Clone the repository:
 ```bash
-git clone [https://github.com/yourusername/yourproject.git](https://github.com/Julien-Mo/Maze-Solver.git)
+git clone https://github.com/Julien-Mo/Maze-Solver.git
 ```
 
 2. Install dependencies:
